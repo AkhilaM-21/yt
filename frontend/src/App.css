@@ -1,0 +1,124 @@
+/* Aggressive removal of Emergent branding */
+.emergent-branding {
+    display: none !important;
+}
+
+/* Hide any Made with Emergent text */
+div[class*="emergent"], 
+div[class*="made-with"], 
+a[href*="emergent"],
+*:contains("Made with Emergent"),
+*:contains("Emergent"),
+div:contains("Made with Emergent"),
+span:contains("Made with Emergent"),
+p:contains("Made with Emergent") {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Specific targeting of the Emergent badge */
+#emergent-badge,
+a[id="emergent-badge"],
+*[id="emergent-badge"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    z-index: -1 !important;
+}
+
+/* Target by href attribute */
+a[href*="emergent.sh"],
+a[href*="utm_source=emergent-badge"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Additional CSS to hide any bottom-right positioned elements that might contain branding */
+div[style*="position: fixed"][style*="bottom"][style*="right"],
+div[style*="position: absolute"][style*="bottom"][style*="right"] {
+    display: none !important;
+}
+
+/* Hide any elements with Emergent-related text content */
+*[data-testid*="emergent"],
+*[id*="emergent"],
+*[class*="watermark"],
+*[class*="branding"] {
+    display: none !important;
+}
+
+/* Super aggressive branding removal - hide anything in bottom right corner */
+div:last-child {
+    position: relative;
+}
+
+div:last-child > div[style*="position: fixed"],
+div:last-child > div[style*="position: absolute"] {
+    display: none !important;
+}
+
+/* Remove any floating elements in bottom corners */
+*[style*="position: fixed"][style*="bottom: 0"],
+*[style*="position: fixed"][style*="bottom: 10px"],
+*[style*="position: fixed"][style*="bottom: 20px"],
+*[style*="position: absolute"][style*="bottom: 0"],
+*[style*="position: absolute"][style*="bottom: 10px"],
+*[style*="position: absolute"][style*="bottom: 20px"] {
+    display: none !important;
+}
+
+/* Hide any elements containing "Made with" */
+*:contains("Made with") {
+    display: none !important;
+}
+
+/* Target elements with high z-index in bottom right */
+*[style*="z-index: 9999"] {
+    display: none !important;
+}
+
+.App-logo {
+    height: 40vmin;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .App-logo {
+        animation: App-logo-spin infinite 20s linear;
+    }
+}
+
+.App-header {
+    background-color: #0f0f10;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(10px + 2vmin);
+    color: white;
+}
+
+.App-link {
+    color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
