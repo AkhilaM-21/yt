@@ -529,6 +529,8 @@ FB_MONGO_URL = os.getenv("FB_MONGO_URL", "mongodb://localhost:27017/facebook_scr
 def clean_facebook_url(url: str) -> str:
     if not url:
         return ""
+    if "permalink.php" in url or ("profile.php" in url and "story_fbid" in url):
+        return url
     return url.split("?")[0]
 
 def create_driver():
@@ -1028,6 +1030,7 @@ def parse_facebook_date(date_str: str) -> str:
         return date_str
 
     # Current time
+    from datetime import datetime, timedelta
     now = datetime.now()
     s = date_str.replace("\u00a0", " ").strip()
     s = re.sub(r'\s+', ' ', s)
@@ -1120,7 +1123,7 @@ def parse_facebook_date(date_str: str) -> str:
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError: continue
 
-    return s
+    return ""
 
 def get_metrics_for_caption_el(driver, cap_el) -> Dict[str, Any]:
     """
