@@ -815,6 +815,9 @@ def get_post_details_from_ancestors(driver, cap_el) -> Tuple[str, str]:
     ]
     date_regex = re.compile("|".join(date_patterns), re.IGNORECASE)
 
+    # Known garbage strings that look like dates or are mistaken for dates
+    garbage_regex = re.compile(r"open reel|see more|comment|share", re.IGNORECASE)
+
     for _ in range(15):
         # 1. Try to find date in the container directly (data-utime)
         if not found_date:
@@ -866,12 +869,19 @@ def get_post_details_from_ancestors(driver, cap_el) -> Tuple[str, str]:
 
                 # Check for date in text/aria
                 has_date_text = False
-                if (text and date_regex.search(text)) or (aria_label and date_regex.search(aria_label)):
+
+                # Check for date match and ensure it's not garbage
+                match_text = None
+                if text and date_regex.search(text) and not garbage_regex.search(text):
+                    match_text = text
+                elif aria_label and date_regex.search(aria_label) and not garbage_regex.search(aria_label):
+                    match_text = aria_label
+
+                if match_text:
                     has_date_text = True
                     score += 15
                     if not found_date:
-                         # Use this text as date if we haven't found a better one
-                         found_date = aria_label if aria_label and date_regex.search(aria_label) else text
+                         found_date = match_text
 
                 # Check for inner <abbr> or <time>
                 try:
@@ -913,6 +923,19 @@ def get_post_details_from_ancestors(driver, cap_el) -> Tuple[str, str]:
         # If we found a high scoring link (likely the timestamp link), we can stop climbing?
         if max_score >= 15 and best_link:
              break
+
+        # Fallback: Look for any text node matching date pattern in the container if link failed
+        if not found_date:
+            try:
+                container_text = safe_inner_text(driver, current)
+                # Split lines and check each
+                for line in container_text.split('\n'):
+                    line = line.strip()
+                    if len(line) < 30 and date_regex.search(line) and not garbage_regex.search(line):
+                        found_date = line
+                        break
+            except:
+                pass
 
         # go one level up
         try:
@@ -994,6 +1017,10 @@ def parse_facebook_date(date_str: str) -> str:
     Convert Facebook relative/short dates (2w, 13m, Yesterday) to YYYY-MM-DD HH:MM:SS.
     """
     if not date_str:
+        return ""
+
+    # Explicit garbage filter
+    if re.search(r"open reel|see more|comment|share|view more", date_str, re.IGNORECASE):
         return ""
 
     # If already formatted (YYYY-MM-DD HH:MM:SS)
