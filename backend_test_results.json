@@ -1,0 +1,63 @@
+{
+  "summary": {
+    "passed": 3,
+    "total": 9,
+    "success_rate": "33.3%",
+    "timestamp": "2026-02-27T13:50:42.709687"
+  },
+  "detailed_results": {
+    "API Health Check": {
+      "success": true,
+      "message": "API is running: YouTube Trends Analytics API is running",
+      "details": {},
+      "timestamp": "2026-02-27T13:50:36.608819"
+    },
+    "YouTube Search API": {
+      "success": false,
+      "message": "API returned status 403: {\"detail\":\"YouTube API quota exceeded or key invalid\"}",
+      "details": {},
+      "timestamp": "2026-02-27T13:50:36.836961"
+    },
+    "Trending Videos API": {
+      "success": true,
+      "message": "Successfully retrieved 50 trending videos",
+      "details": {
+        "region": "IN",
+        "total_videos": 50
+      },
+      "timestamp": "2026-02-27T13:50:42.006063"
+    },
+    "CSV Export": {
+      "success": false,
+      "message": "API returned status 403: {\"detail\":\"YouTube API quota exceeded or key invalid\"}",
+      "details": {},
+      "timestamp": "2026-02-27T13:50:42.145987"
+    },
+    "PDF Export": {
+      "success": false,
+      "message": "API returned status 403: {\"detail\":\"YouTube API quota exceeded or key invalid\"}",
+      "details": {},
+      "timestamp": "2026-02-27T13:50:42.216604"
+    },
+    "Sentiment Analysis": {
+      "success": false,
+      "message": "No data to analyze sentiment",
+      "details": {},
+      "timestamp": "2026-02-27T13:50:42.484636"
+    },
+    "MongoDB Storage": {
+      "success": false,
+      "message": "Failed to perform search for storage test",
+      "details": {},
+      "timestamp": "2026-02-27T13:50:42.600630"
+    },
+    "Error Handling": {
+      "success": true,
+      "message": "API handles invalid parameters appropriately",
+      "details": {
+        "status_code": 400
+      },
+      "timestamp": "2026-02-27T13:50:42.709486"
+    }
+  }
+}
