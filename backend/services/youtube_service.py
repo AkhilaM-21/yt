@@ -35,14 +35,17 @@ class YouTubeService:
     def _execute_api_request(self, url: str, params: dict) -> dict:
         """
         Executes a YouTube API request with automatic failover to the next API key.
-        Handles 403 (Quota exceeded) and 400 (Bad Request/Invalid key).
+        Handles 403 (Quota exceeded) and 400 (Bad Request/Invalid key) by switching keys.
         """
         if not self.api_keys:
             raise Exception("No YouTube API keys configured.")
 
-        starting_index = self.current_key_index
+        attempts = 0
+        max_attempts = len(self.api_keys)
 
-        while True:
+        last_exception = None
+
+        while attempts < max_attempts:
             current_key = self.api_keys[self.current_key_index]
             params['key'] = current_key
 
@@ -58,14 +61,15 @@ class YouTubeService:
                 if status_code in [403, 400]:
                     logger.warning(f"API key {current_key[:5]}... failed ({status_code}). Trying next key.")
                     self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
-
-                    # If we've looped through all keys and ended up back where we started
-                    if self.current_key_index == starting_index:
-                        logger.error("All configured API keys have failed.")
-                        raise Exception("All YouTube API keys have failed (quota exceeded or invalid).") from e
+                    attempts += 1
+                    last_exception = e
                 else:
                     # For other HTTP errors (404, 500), raise immediately
-                    raise
+                    raise e
+
+        # If we exit the loop, it means all keys were tried and all failed with 400/403
+        logger.error(f"All {max_attempts} configured API keys have failed.")
+        raise Exception("All YouTube API keys have failed (quota exceeded or invalid).") from last_exception
 
     def search_videos(self, search_request: VideoSearchRequest) -> Tuple[List[VideoResponse], int]:
         """
