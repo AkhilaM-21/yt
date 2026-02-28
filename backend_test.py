@@ -20,6 +20,8 @@ import time
 
 # Get backend URL from frontend .env file
 def get_backend_url():
+    if os.environ.get('TEST_BACKEND_URL'):
+        return os.environ.get('TEST_BACKEND_URL')
     try:
         with open('/app/frontend/.env', 'r') as f:
             for line in f:

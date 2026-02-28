@@ -10,9 +10,13 @@ logger = logging.getLogger(__name__)
 
 class YouTubeService:
     def __init__(self):
-        # Support a single key or multiple comma-separated keys
-        api_keys_env = os.environ.get('YOUTUBE_API_KEY', 'AIzaSyByIcDjLKKMIp3-6xplEyHtNN8EchI-kq4')
-        self.api_keys = [key.strip() for key in api_keys_env.split(',') if key.strip()]
+        self.api_keys = []
+        env_keys = os.environ.get('YOUTUBE_API_KEYS', os.environ.get('YOUTUBE_API_KEY', ''))
+        if env_keys:
+            self.api_keys.extend([k.strip() for k in env_keys.split(',') if k.strip()])
+
+        if not self.api_keys:
+            logger.warning("No YouTube API keys found in environment variables.")
         self.current_key_index = 0
         self.base_url = "https://www.googleapis.com/youtube/v3"
         try:
@@ -30,31 +34,63 @@ class YouTubeService:
         """
         Search for trending YouTube videos based on keywords and date range
         """
-        try:
-            # Get video search results
-            search_results, total_results = self._search_videos_api(search_request)
+        # Get video search results
+        search_results, total_results = self._search_videos_api(search_request)
 
-            # Get detailed video statistics
-            video_ids = [video['id']['videoId'] for video in search_results if video['id']['kind'] == 'youtube#video']
+        # Get detailed video statistics
+        video_ids = [video['id']['videoId'] for video in search_results if video['id']['kind'] == 'youtube#video']
 
-            if not video_ids:
-                return [], 0
-
-            # Get video details including statistics
-            detailed_videos = self._get_video_details(video_ids)
-
-            # Convert to VideoResponse objects
-            videos = []
-            for video in detailed_videos:
-                video_response = self._convert_to_video_response(video, search_request.keywords)
-                if video_response:
-                    videos.append(video_response)
-
-            return videos, total_results
-
-        except Exception as e:
-            logger.error(f"Error searching videos: {str(e)}")
+        if not video_ids:
             return [], 0
+
+        # Get video details including statistics
+        detailed_videos = self._get_video_details(video_ids)
+
+        # Convert to VideoResponse objects
+        videos = []
+        for video in detailed_videos:
+            video_response = self._convert_to_video_response(video, search_request.keywords)
+            if video_response:
+                videos.append(video_response)
+
+        return videos, total_results
+
+    def _get_current_key(self) -> str:
+        """Returns the current API key based on the index."""
+        if not self.api_keys:
+            return ""
+        # Ensure index wraps around or stays within bounds
+        self.current_key_index = self.current_key_index % len(self.api_keys)
+        return self.api_keys[self.current_key_index]
+
+    def _execute_with_key_rotation(self, request_func, *args, **kwargs):
+        """
+        Executes a request function and rotates the API key if a quota/auth error occurs.
+        The request_func must accept 'api_key' as a keyword argument.
+        """
+        attempts = 0
+        max_attempts = len(self.api_keys) if self.api_keys else 1
+
+        while attempts < max_attempts:
+            current_key = self._get_current_key()
+            try:
+                kwargs['api_key'] = current_key
+                return request_func(*args, **kwargs)
+            except requests.exceptions.HTTPError as e:
+                status_code = e.response.status_code if getattr(e, 'response', None) is not None else None
+                # 403 (Quota exceeded) or 400 (Invalid key)
+                if status_code in [403, 400]:
+                    logger.warning(f"YouTube API Error {status_code} with key {current_key[:10]}... Switching to next key.")
+                    self.current_key_index += 1
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error("All available YouTube API keys have failed.")
+                        raise e
+                else:
+                    # Other HTTP errors (e.g., 500) are raised immediately
+                    raise e
+
+        raise Exception("Failed to execute request after exhausting API keys.")
 
     def _execute_api_request(self, url: str, params: dict) -> dict:
         """
@@ -92,54 +128,61 @@ class YouTubeService:
         """
         Search YouTube API for videos
         """
-        url = f"{self.base_url}/search"
+        def _make_search_request(api_key):
+            url = f"{self.base_url}/search"
 
-        # Convert date strings to RFC 3339 format
-        published_after = f"{search_request.startDate}T00:00:00Z"
-        published_before = f"{search_request.endDate}T23:59:59Z"
+            # Convert date strings to RFC 3339 format
+            published_after = f"{search_request.startDate}T00:00:00Z"
+            published_before = f"{search_request.endDate}T23:59:59Z"
 
-        params = {
-            'part': 'snippet',
-            'q': search_request.keywords,
-            'type': 'video',
-            'regionCode': search_request.region,
-            'publishedAfter': published_after,
-            'publishedBefore': published_before,
-            'order': 'viewCount',
-            'maxResults': search_request.page_size,
-            'relevanceLanguage': 'te' if search_request.region == 'IN' else 'en'
-        }
+            params = {
+                'key': api_key,
+                'part': 'snippet',
+                'q': search_request.keywords,
+                'type': 'video',
+                'regionCode': search_request.region,
+                'publishedAfter': published_after,
+                'publishedBefore': published_before,
+                'order': 'viewCount',
+                'maxResults': search_request.page_size,
+                'relevanceLanguage': 'te' if search_request.region == 'IN' else 'en'
+            }
 
-        next_page_token = None
+            next_page_token = None
 
-        # Loop through pages to get to the desired one
-        for i in range(search_request.page):
-            if next_page_token:
-                params['pageToken'] = next_page_token
+            # Loop through pages to get to the desired one
+            for i in range(search_request.page):
+                if next_page_token:
+                    params['pageToken'] = next_page_token
 
-            data = self._execute_api_request(url, params)
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
 
-            # If this is the last page in the loop, return its data
-            if i == search_request.page - 1:
-                videos = data.get('items', [])
-                total_results = data.get('pageInfo', {}).get('totalResults', 0)
-                return videos, total_results
+                # If this is the last page in the loop, return its data
+                if i == search_request.page - 1:
+                    videos = data.get('items', [])
+                    total_results = data.get('pageInfo', {}).get('totalResults', 0)
+                    return videos, total_results
 
-            next_page_token = data.get('nextPageToken')
+                next_page_token = data.get('nextPageToken')
 
-            # If there's no next page, we can't continue.
-            if not next_page_token:
-                total_results = data.get('pageInfo', {}).get('totalResults', 0)
-                return [], total_results
+                # If there's no next page, we can't continue.
+                if not next_page_token:
+                    total_results = data.get('pageInfo', {}).get('totalResults', 0)
+                    return [], total_results
 
-        # Should not be reached if search_request.page >= 1
-        return [], 0
+            # Should not be reached if search_request.page >= 1
+            return [], 0
+
+        return self._execute_with_key_rotation(_make_search_request)
 
     def _get_video_details(self, video_ids: List[str]) -> List[dict]:
         """
         Get detailed information about videos including statistics
         """
-        url = f"{self.base_url}/videos"
+        def _make_details_request(api_key):
+            url = f"{self.base_url}/videos"
 
         params = {
             'part': 'snippet,statistics',
@@ -286,10 +329,11 @@ class YouTubeService:
         """
         Get trending videos for a specific region
         """
-        try:
+        def _make_trending_request(api_key):
             url = f"{self.base_url}/videos"
             
             params = {
+                'key': api_key,
                 'part': 'snippet,statistics',
                 'chart': 'mostPopular',
                 'regionCode': region,
@@ -309,6 +353,8 @@ class YouTubeService:
             
             return video_responses
             
+        try:
+            return self._execute_with_key_rotation(_make_trending_request)
         except Exception as e:
             logger.error(f"Error getting trending videos: {str(e)}")
             return []
