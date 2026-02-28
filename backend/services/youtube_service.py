@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 class YouTubeService:
     def __init__(self):
-        self.api_key = os.environ.get('YOUTUBE_API_KEY', 'AIzaSyByIcDjLKKMIp3-6xplEyHtNN8EchI-kq4')
+        # Support a single key or multiple comma-separated keys
+        api_keys_env = os.environ.get('YOUTUBE_API_KEY', 'AIzaSyByIcDjLKKMIp3-6xplEyHtNN8EchI-kq4')
+        self.api_keys = [key.strip() for key in api_keys_env.split(',') if key.strip()]
+        self.current_key_index = 0
         self.base_url = "https://www.googleapis.com/youtube/v3"
         try:
             from google.cloud import translate_v2 as translate
@@ -53,6 +56,38 @@ class YouTubeService:
             logger.error(f"Error searching videos: {str(e)}")
             return [], 0
 
+    def _execute_api_request(self, url: str, params: dict) -> dict:
+        """
+        Executes a YouTube API request with automatic failover to the next API key.
+        """
+        if not self.api_keys:
+            raise Exception("No YouTube API keys configured.")
+
+        starting_index = self.current_key_index
+
+        while True:
+            current_key = self.api_keys[self.current_key_index]
+            params['key'] = current_key
+
+            try:
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+            except requests.exceptions.HTTPError as e:
+                # 403 usually means quota exceeded or invalid key
+                if response.status_code == 403:
+                    logger.warning(f"API key {current_key[:5]}... failed (403). Trying next key.")
+                    self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+
+                    # If we've looped through all keys and ended up back where we started
+                    if self.current_key_index == starting_index:
+                        logger.error("All configured API keys have failed.")
+                        raise Exception("All YouTube API keys have exceeded their quota or are invalid.") from e
+                else:
+                    # For other HTTP errors (400, 404, 500), raise immediately
+                    raise
+
     def _search_videos_api(self, search_request: VideoSearchRequest) -> Tuple[List[dict], int]:
         """
         Search YouTube API for videos
@@ -64,7 +99,6 @@ class YouTubeService:
         published_before = f"{search_request.endDate}T23:59:59Z"
 
         params = {
-            'key': self.api_key,
             'part': 'snippet',
             'q': search_request.keywords,
             'type': 'video',
@@ -83,9 +117,7 @@ class YouTubeService:
             if next_page_token:
                 params['pageToken'] = next_page_token
 
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+            data = self._execute_api_request(url, params)
 
             # If this is the last page in the loop, return its data
             if i == search_request.page - 1:
@@ -110,15 +142,13 @@ class YouTubeService:
         url = f"{self.base_url}/videos"
 
         params = {
-            'key': self.api_key,
             'part': 'snippet,statistics',
             'id': ','.join(video_ids)
         }
 
-        response = requests.get(url, params=params)
-        response.raise_for_status()
+        data = self._execute_api_request(url, params)
 
-        return response.json().get('items', [])
+        return data.get('items', [])
 
     def _convert_to_video_response(self, video: dict, keywords: str) -> Optional[VideoResponse]:
         """
@@ -260,7 +290,6 @@ class YouTubeService:
             url = f"{self.base_url}/videos"
             
             params = {
-                'key': self.api_key,
                 'part': 'snippet,statistics',
                 'chart': 'mostPopular',
                 'regionCode': region,
@@ -268,10 +297,8 @@ class YouTubeService:
                 'maxResults': 50
             }
             
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            
-            videos = response.json().get('items', [])
+            data = self._execute_api_request(url, params)
+            videos = data.get('items', [])
             
             # Convert to VideoResponse objects
             video_responses = []
