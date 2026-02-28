@@ -15,7 +15,6 @@ import uuid
 from datetime import datetime
 import io
 import asyncio
-import requests
 
 # Import our services and models
 from models.video import VideoSearchRequest, VideoResponse, SearchResponse
@@ -122,16 +121,6 @@ async def search_youtube_videos(search_request: VideoSearchRequest):
             search_params=search_request
         )
         
-    except requests.exceptions.HTTPError as e:
-        logging.error(f"YouTube API Error: {str(e)}")
-        if e.response.status_code == 403:
-             raise HTTPException(status_code=403, detail="YouTube API quota exceeded or key invalid")
-        elif e.response.status_code == 400:
-             raise HTTPException(status_code=400, detail="Invalid request to YouTube API (possibly expired key)")
-        elif e.response.status_code == 429:
-             raise HTTPException(status_code=429, detail="Too many requests to YouTube API")
-        else:
-             raise HTTPException(status_code=e.response.status_code, detail=f"YouTube API Error: {str(e)}")
     except Exception as e:
         logging.error(f"Error searching videos: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error searching videos: {str(e)}")
@@ -190,17 +179,6 @@ async def export_csv(search_request: VideoSearchRequest):
             media_type="text/csv",
             headers={"Content-Disposition": "attachment; filename=youtube_trends_report.csv"}
         )
-
-    except requests.exceptions.HTTPError as e:
-        logging.error(f"YouTube API Error during CSV export: {str(e)}")
-        if e.response.status_code == 403:
-             raise HTTPException(status_code=403, detail="YouTube API quota exceeded or key invalid")
-        elif e.response.status_code == 400:
-             raise HTTPException(status_code=400, detail="Invalid request to YouTube API (possibly expired key)")
-        elif e.response.status_code == 429:
-             raise HTTPException(status_code=429, detail="Too many requests to YouTube API")
-        else:
-             raise HTTPException(status_code=e.response.status_code, detail=f"YouTube API Error: {str(e)}")
         
     except Exception as e:
         logging.error(f"Error exporting CSV: {str(e)}")
@@ -230,17 +208,6 @@ async def export_pdf(search_request: VideoSearchRequest):
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=youtube_trends_report.pdf"}
         )
-
-    except requests.exceptions.HTTPError as e:
-        logging.error(f"YouTube API Error during PDF export: {str(e)}")
-        if e.response.status_code == 403:
-             raise HTTPException(status_code=403, detail="YouTube API quota exceeded or key invalid")
-        elif e.response.status_code == 400:
-             raise HTTPException(status_code=400, detail="Invalid request to YouTube API (possibly expired key)")
-        elif e.response.status_code == 429:
-             raise HTTPException(status_code=429, detail="Too many requests to YouTube API")
-        else:
-             raise HTTPException(status_code=e.response.status_code, detail=f"YouTube API Error: {str(e)}")
         
     except Exception as e:
         logging.error(f"Error exporting PDF: {str(e)}")
