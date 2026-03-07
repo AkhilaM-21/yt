@@ -5,7 +5,7 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Calendar, Search, Filter, TrendingUp } from 'lucide-react';
 
-const SearchForm = ({ onSearch, loading }) => {
+const SearchForm = ({ onSearch, loading, platform, setPlatform }) => {
   const [formData, setFormData] = useState({
     keywords: '',
     startDate: '',
@@ -27,15 +27,34 @@ const SearchForm = ({ onSearch, loading }) => {
 
   return (
     <Card className="shadow-xl bg-gradient-to-br from-white to-gray-50 border-0">
-      <CardHeader className="bg-gradient-to-r from-red-50 to-red-100 rounded-t-lg">
-        <CardTitle className="flex items-center space-x-2 text-red-700">
+      <CardHeader className={`bg-gradient-to-r ${platform === 'YouTube' ? 'from-red-50 to-red-100' : 'from-pink-50 to-pink-100'} rounded-t-lg`}>
+        <CardTitle className={`flex items-center space-x-2 ${platform === 'YouTube' ? 'text-red-700' : 'text-pink-700'}`}>
           <TrendingUp className="w-6 h-6" />
-          <span>YouTube Trends Search</span>
+          <span>{platform} Trends Search</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          <div className="flex justify-center mb-6 space-x-4">
+            <Button
+              type="button"
+              onClick={() => setPlatform('YouTube')}
+              className={`px-6 py-2 rounded-full font-semibold transition-all ${platform === 'YouTube' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              YouTube
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setPlatform('Instagram')}
+              className={`px-6 py-2 rounded-full font-semibold transition-all ${platform === 'Instagram' ? 'bg-pink-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              Instagram
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
             {/* Keywords Input */}
             <div className="space-y-2">
               <Label htmlFor="keywords" className="text-sm font-semibold text-gray-700">
@@ -119,7 +138,7 @@ const SearchForm = ({ onSearch, loading }) => {
             <Button
               type="submit"
               disabled={loading}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-lg font-semibold transform transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
+              className={`${platform === 'YouTube' ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' : 'bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800'} text-white px-8 py-3 rounded-lg font-semibold transform transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl`}
             >
               {loading ? (
                 <>

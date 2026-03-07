@@ -129,3 +129,28 @@ export const youtubeAPI = {
 };
 
 export default apiClient;
+
+
+export const instagramAPI = {
+  // Search for Instagram posts
+  searchPosts: async (searchParams) => {
+    try {
+      const response = await apiClient.post('/instagram/search', searchParams);
+      return response.data;
+    } catch (error) {
+      console.error('Error searching instagram posts:', error);
+      throw error;
+    }
+  },
+
+  // Get analytics summary
+  getAnalyticsSummary: async (searchParams) => {
+    try {
+      const response = await apiClient.post('/instagram/analytics', searchParams);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting instagram analytics summary:', error);
+      throw error;
+    }
+  }
+};
