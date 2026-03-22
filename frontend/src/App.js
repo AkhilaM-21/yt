@@ -4,7 +4,7 @@ import Header from './components/Header';
 import SearchForm from './components/SearchForm';
 import ResultsTable from './components/ResultsTable';
 import Summary from './components/Summary';
-import { youtubeAPI } from './services/api';
+import { youtubeAPI, instagramAPI } from './services/api';
 import { useToast } from './hooks/use-toast';
 import { Toaster } from './components/ui/sonner';
 
@@ -18,8 +18,11 @@ function App() {
   const [currentSearchParams, setCurrentSearchParams] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+
   const [pageSize, setPageSize] = useState(10);
+  const [platform, setPlatform] = useState('YouTube');
   const { toast } = useToast();
+
 
   const calculateSummary = (videos) => {
     if (!videos || videos.length === 0) {
@@ -76,11 +79,15 @@ function App() {
 
     const params = { ...searchOnlyParams, page, page_size: pageSize };
 
+
     try {
       // Fetch only videos, calculate summary locally to avoid extra API calls and errors
-      const videoResponse = await youtubeAPI.searchVideos(params);
+      const videoResponse = platform === 'YouTube'
+        ? await youtubeAPI.searchVideos(params)
+        : await instagramAPI.searchPosts(params);
 
       const videos = videoResponse.videos || [];
+
       setSearchResults(videos);
       setFilteredSearchResults(videos);
       setTotalResults(videoResponse.total_count || 0);
@@ -192,10 +199,17 @@ function App() {
           </p>
         </div>
 
+
         {/* Search Form */}
         <div className="mb-12">
-          <SearchForm onSearch={handleSearch} loading={loading} />
+          <SearchForm
+            onSearch={handleSearch}
+            loading={loading}
+            platform={platform}
+            setPlatform={setPlatform}
+          />
         </div>
+
 
         {/* Summary */}
         {hasSearched && summaryData && (
